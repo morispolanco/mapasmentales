@@ -5,7 +5,7 @@ from matplotlib.patches import Rectangle, Circle, RegularPolygon
 def crear_mapa_mental(texto):
     lineas = texto.strip().split('\n')
     resultado = {}
-    pila = [(0, resultado)]  # Pila inicial con nivel 0
+    pila = [(0, resultado)]
     
     for linea in lineas:
         nivel = 0
@@ -15,17 +15,11 @@ def crear_mapa_mental(texto):
         texto_limpio = linea.strip()
         if not texto_limpio:
             continue
-        
-        # Asegurarse de que la pila no quede vacía
         while pila and pila[-1][0] >= nivel:
             pila.pop()
-        
-        # Si la pila está vacía, reiniciarla con el nivel raíz
         if not pila:
             pila.append((0, resultado))
-        
         padre = pila[-1][1]
-        
         if texto_limpio.endswith(':'):
             clave = texto_limpio[:-1].strip()
             nuevo_dict = {}
@@ -35,7 +29,6 @@ def crear_mapa_mental(texto):
             if 'items' not in padre:
                 padre['items'] = []
             padre['items'].append(texto_limpio)
-    
     return resultado
 
 def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0):
@@ -43,7 +36,7 @@ def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0):
     formas = [
         lambda x, y, s: Rectangle((x-s/2, y-s/2), s, s),  # Cuadrado
         lambda x, y, s: Circle((x, y), s/2),              # Círculo
-        lambda x, y, s: RegularPolygon((x, y), 6, s/2)    # Hexágono
+        lambda x, y, s: RegularPolygon((x, y), 6, radius=s/2)  # Hexágono corregido
     ]
     tamaño = 2
     espaciado_vertical = -3
