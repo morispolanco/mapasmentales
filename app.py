@@ -59,7 +59,7 @@ def contar_descendientes(mapa):
         total += len(mapa['items'])
     return total
 
-def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_horizontal=0):
+def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_vertical=0):
     colores = generar_colores(max_niveles + 1)
     formas = [
         lambda x, y, s: Rectangle((x-s/2, y-s/2), s, s),  # Cuadrado
@@ -67,7 +67,7 @@ def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_ho
         lambda x, y, s: RegularPolygon((x, y), 6, radius=s/2)  # Hexágono
     ]
     tamaño = 2
-    espaciado_vertical = -3
+    espaciado_horizontal = 4
     
     # Dibujar el nodo actual
     forma = formas[min(nivel, len(formas)-1)](x, y, tamaño)
@@ -79,34 +79,34 @@ def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_ho
     if clave:
         ax.text(x, y, clave, ha='center', va='center', fontsize=10, wrap=True)
     
-    # Calcular el número de descendientes para centrarlos
+    # Calcular el número de descendientes para centrarlos verticalmente
     num_descendientes = contar_descendientes(mapa)
-    y_hijo = y + espaciado_vertical
-    x_hijo_base = x - (num_descendientes - 1) * espaciado_horizontal / 2
+    x_hijo = x + espaciado_horizontal
+    y_hijo_base = y - (num_descendientes - 1) * espaciado_vertical / 2
     
     # Procesar hijos (subsecciones)
     i = 0
     for subclave, subvalor in mapa.items():
         if subclave != 'items':
-            x_hijo = x_hijo_base + i * espaciado_horizontal
-            ax.plot([x, x_hijo], [y-tamaño/2, y_hijo+tamaño/2], 'k-')
+            y_hijo = y_hijo_base + i * espaciado_vertical
+            ax.plot([x+tamaño/2, x_hijo-tamaño/2], [y, y_hijo], 'k-')
             sub_descendientes = contar_descendientes(subvalor)
-            dibujar_mapa_mental(subvalor, ax, x_hijo, y_hijo, nivel + 1, max_niveles, espaciado_horizontal)
+            dibujar_mapa_mental(subvalor, ax, x_hijo, y_hijo, nivel + 1, max_niveles, espaciado_vertical)
             i += sub_descendientes + 1
     
     # Dibujar ítems (hojas)
     if 'items' in mapa:
         for j, item in enumerate(mapa['items']):
-            x_item = x_hijo_base + (i + j) * espaciado_horizontal
-            forma_item = formas[min(nivel+1, len(formas)-1)](x_item, y_hijo, tamaño/1.5)
+            y_item = y_hijo_base + (i + j) * espaciado_vertical
+            forma_item = formas[min(nivel+1, len(formas)-1)](x_hijo, y_item, tamaño/1.5)
             forma_item.set_facecolor(colores[nivel + 1])
             forma_item.set_edgecolor('black')
             ax.add_patch(forma_item)
-            ax.text(x_item, y_hijo, item, ha='center', va='center', fontsize=8)
-            ax.plot([x, x_item], [y-tamaño/2, y_hijo+tamaño/2], 'k-')
+            ax.text(x_hijo, y_item, item, ha='center', va='center', fontsize=8)
+            ax.plot([x+tamaño/2, x_hijo-tamaño/2], [y, y_item], 'k-')
 
 # Interfaz con Streamlit
-st.title("Árbol Genealógico - Mapa Mental")
+st.title("Árbol Genealógico Horizontal - Mapa Mental")
 
 texto_default = """
 Tema principal:
@@ -125,9 +125,9 @@ if st.button("Generar Árbol Genealógico"):
         try:
             mapa = crear_mapa_mental(texto_input)
             max_niveles = calcular_max_niveles(mapa)
-            fig, ax = plt.subplots(figsize=(12, 8))  # Ajustar tamaño según necesidad
-            espaciado_horizontal = 2.5  # Espaciado entre nodos en el mismo nivel
-            dibujar_mapa_mental(mapa, ax, max_niveles=max_niveles, espaciado_horizontal=espaciado_horizontal)
+            fig, ax = plt.subplots(figsize=(12, 8))  # Ajustar tamaño para disposición horizontal
+            espaciado_vertical = 2.5  # Espaciado entre nodos en el mismo nivel
+            dibujar_mapa_mental(mapa, ax, max_niveles=max_niveles, espaciado_vertical=espaciado_vertical)
             ax.set_aspect('equal')
             ax.axis('off')
             st.pyplot(fig)
