@@ -2,11 +2,10 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Circle, RegularPolygon
 
-# Función para crear la estructura del mapa mental
 def crear_mapa_mental(texto):
     lineas = texto.strip().split('\n')
     resultado = {}
-    pila = [(0, resultado)]
+    pila = [(0, resultado)]  # Pila inicial con nivel 0
     
     for linea in lineas:
         nivel = 0
@@ -16,9 +15,17 @@ def crear_mapa_mental(texto):
         texto_limpio = linea.strip()
         if not texto_limpio:
             continue
-        while pila[-1][0] >= nivel:
+        
+        # Asegurarse de que la pila no quede vacía
+        while pila and pila[-1][0] >= nivel:
             pila.pop()
+        
+        # Si la pila está vacía, reiniciarla con el nivel raíz
+        if not pila:
+            pila.append((0, resultado))
+        
         padre = pila[-1][1]
+        
         if texto_limpio.endswith(':'):
             clave = texto_limpio[:-1].strip()
             nuevo_dict = {}
@@ -28,9 +35,9 @@ def crear_mapa_mental(texto):
             if 'items' not in padre:
                 padre['items'] = []
             padre['items'].append(texto_limpio)
+    
     return resultado
 
-# Función para dibujar el mapa mental
 def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0):
     colores = ['#FF9999', '#99CCFF', '#99FF99']  # Rojo, Azul, Verde
     formas = [
@@ -74,7 +81,6 @@ def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0):
 # Interfaz con Streamlit
 st.title("Generador de Mapas Mentales")
 
-# Texto de ejemplo por defecto
 texto_default = """
 Tema principal:
 	Sección 1:
@@ -85,22 +91,18 @@ Tema principal:
 	idea suelta
 """
 
-# Área de texto para que el usuario ingrese su lista
 texto_input = st.text_area("Ingresa tu lista estructurada con tabulaciones:", value=texto_default, height=200)
 
-# Botón para generar el mapa
 if st.button("Generar Mapa Mental"):
     if texto_input:
-        # Crear el mapa mental
-        mapa = crear_mapa_mental(texto_input)
-        
-        # Generar el gráfico con matplotlib
-        fig, ax = plt.subplots(figsize=(12, 8))
-        dibujar_mapa_mental(mapa, ax)
-        ax.set_aspect('equal')
-        ax.axis('off')
-        
-        # Mostrar el gráfico en Streamlit
-        st.pyplot(fig)
+        try:
+            mapa = crear_mapa_mental(texto_input)
+            fig, ax = plt.subplots(figsize=(12, 8))
+            dibujar_mapa_mental(mapa, ax)
+            ax.set_aspect('equal')
+            ax.axis('off')
+            st.pyplot(fig)
+        except Exception as e:
+            st.error(f"Error al procesar el texto: {str(e)}")
     else:
         st.warning("Por favor, ingresa un texto válido.")
