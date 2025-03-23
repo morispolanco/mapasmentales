@@ -23,7 +23,7 @@ def crear_mapa_mental(texto):
         padre = pila[-1][1]
         if texto_limpio.endswith(':'):
             clave = texto_limpio[:-1].strip()
-            nuevo_dict = {}
+            nuevo_dict = {'_original': clave}  # Guardar el texto original
             padre[clave] = nuevo_dict
             pila.append((nivel, nuevo_dict))
         else:
@@ -40,24 +40,44 @@ def generar_colores(n):
     return [mcolors.hsv_to_rgb((i/n, 0.7, 0.9)) for i in range(n)]
 
 def calcular_max_niveles(mapa, nivel=0):
-    """Calcula el nivel máximo de anidamiento."""
     max_nivel = nivel
     for clave, valor in mapa.items():
-        if clave != 'items' and isinstance(valor, dict):
+        if clave != '_original' and clave != 'items' and isinstance(valor, dict):
             max_nivel = max(max_nivel, calcular_max_niveles(valor, nivel + 1))
     if 'items' in mapa:
         max_nivel = max(max_nivel, nivel + 1)
     return max_nivel
 
 def contar_descendientes(mapa):
-    """Cuenta el número total de descendientes (hijos + ítems) para ajustar el espaciado."""
     total = 0
     for clave, valor in mapa.items():
-        if clave != 'items':
+        if clave != '_original' and clave != 'items':
             total += 1 + contar_descendientes(valor)
     if 'items' in mapa:
         total += len(mapa['items'])
     return total
+
+def asignar_etiquetas(mapa, prefijo="1"):
+    """Asigna etiquetas con números y letras a los nodos."""
+    etiquetas = {}
+    if prefijo == "1":  # Raíz
+        etiquetas[prefijo] = mapa
+        mapa['_etiqueta'] = prefijo
+    i = 0
+    for clave, valor in mapa.items():
+        if clave != '_original' and clave != 'items' and isinstance(valor, dict):
+            letra = chr(65 + i)  # A, B, C, ...
+            nueva_etiqueta = f"{prefijo}{letra}"
+            valor['_etiqueta'] = nueva_etiqueta
+            etiquetas[nueva_etiqueta] = valor
+            asignar_etiquetas(valor, nueva_etiqueta)
+            i += 1
+    if 'items' in mapa:
+        for j, item in enumerate(mapa['items']):
+            nueva_etiqueta = f"{prefijo}{j+1}"
+            etiquetas[nueva_etiqueta] = item
+            mapa['items'][j] = {'_etiqueta': nueva_etiqueta, '_original': item}
+    return etiquetas
 
 def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_vertical=0):
     colores = generar_colores(max_niveles + 1)
@@ -75,9 +95,8 @@ def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_ve
     forma.set_edgecolor('black')
     ax.add_patch(forma)
     
-    clave = list(mapa.keys())[0] if nivel == 0 or 'items' not in mapa else ""
-    if clave:
-        ax.text(x, y, clave, ha='center', va='center', fontsize=10, wrap=True)
+    etiqueta = mapa.get('_etiqueta', '')
+    ax.text(x, y, etiqueta, ha='center', va='center', fontsize=10, wrap=True)
     
     # Calcular el número de descendientes para centrarlos verticalmente
     num_descendientes = contar_descendientes(mapa)
@@ -87,7 +106,7 @@ def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_ve
     # Procesar hijos (subsecciones)
     i = 0
     for subclave, subvalor in mapa.items():
-        if subclave != 'items':
+        if subclave != '_original' and subclave != '_etiqueta' and subclave != 'items' and isinstance(subvalor, dict):
             y_hijo = y_hijo_base + i * espaciado_vertical
             ax.plot([x+tamaño/2, x_hijo-tamaño/2], [y, y_hijo], 'k-')
             sub_descendientes = contar_descendientes(subvalor)
@@ -102,11 +121,11 @@ def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_ve
             forma_item.set_facecolor(colores[nivel + 1])
             forma_item.set_edgecolor('black')
             ax.add_patch(forma_item)
-            ax.text(x_hijo, y_item, item, ha='center', va='center', fontsize=8)
+            ax.text(x_hijo, y_item, item['_etiqueta'], ha='center', va='center', fontsize=8)
             ax.plot([x+tamaño/2, x_hijo-tamaño/2], [y, y_item], 'k-')
 
 # Interfaz con Streamlit
-st.title("Árbol Genealógico Horizontal - Mapa Mental")
+st.title("Árbol Genealógico Horizontal - Mapa Mental (Números y Letras)")
 
 texto_default = """
 Tema principal:
@@ -125,8 +144,9 @@ if st.button("Generar Árbol Genealógico"):
         try:
             mapa = crear_mapa_mental(texto_input)
             max_niveles = calcular_max_niveles(mapa)
-            fig, ax = plt.subplots(figsize=(12, 8))  # Ajustar tamaño para disposición horizontal
-            espaciado_vertical = 2.5  # Espaciado entre nodos en el mismo nivel
+            asignar_etiquetas(mapa)  # Asignar etiquetas antes de dibujar
+            fig, ax = plt.subplots(figsize=(12, 8))
+            espaciado_vertical = 2.5
             dibujar_mapa_mental(mapa, ax, max_niveles=max_niveles, espaciado_vertical=espaciado_vertical)
             ax.set_aspect('equal')
             ax.axis('off')
