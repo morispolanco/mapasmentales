@@ -5,7 +5,7 @@ import matplotlib.colors as mcolors
 
 def crear_mapa_mental(texto):
     lineas = texto.strip().split('\n')
-    resultado = {}
+    resultado = {'_etiqueta': '1'}  # Raíz como diccionario desde el inicio
     pila = [(0, resultado)]
     
     for linea in lineas:
@@ -23,17 +23,16 @@ def crear_mapa_mental(texto):
         padre = pila[-1][1]
         if texto_limpio.endswith(':'):
             clave = texto_limpio[:-1].strip()
-            nuevo_dict = {'_original': clave}  # Guardar el texto original
+            nuevo_dict = {'_original': clave}
             padre[clave] = nuevo_dict
             pila.append((nivel, nuevo_dict))
         else:
             if 'items' not in padre:
                 padre['items'] = []
-            padre['items'].append(texto_limpio)
+            padre['items'].append({'_original': texto_limpio})
     return resultado
 
 def generar_colores(n):
-    """Genera una lista de n colores distintos."""
     colores_base = list(mcolors.TABLEAU_COLORS.values())
     if n <= len(colores_base):
         return colores_base[:n]
@@ -42,7 +41,7 @@ def generar_colores(n):
 def calcular_max_niveles(mapa, nivel=0):
     max_nivel = nivel
     for clave, valor in mapa.items():
-        if clave != '_original' and clave != 'items' and isinstance(valor, dict):
+        if clave not in ['_etiqueta', '_original', 'items'] and isinstance(valor, dict):
             max_nivel = max(max_nivel, calcular_max_niveles(valor, nivel + 1))
     if 'items' in mapa:
         max_nivel = max(max_nivel, nivel + 1)
@@ -51,40 +50,33 @@ def calcular_max_niveles(mapa, nivel=0):
 def contar_descendientes(mapa):
     total = 0
     for clave, valor in mapa.items():
-        if clave != '_original' and clave != 'items':
+        if clave not in ['_etiqueta', '_original', 'items']:
             total += 1 + contar_descendientes(valor)
     if 'items' in mapa:
         total += len(mapa['items'])
     return total
 
 def asignar_etiquetas(mapa, prefijo="1"):
-    """Asigna etiquetas con números y letras a los nodos."""
-    etiquetas = {}
-    if prefijo == "1":  # Raíz
-        etiquetas[prefijo] = mapa
-        mapa['_etiqueta'] = prefijo
+    mapa['_etiqueta'] = prefijo
     i = 0
-    for clave, valor in mapa.items():
-        if clave != '_original' and clave != 'items' and isinstance(valor, dict):
+    for clave, valor in list(mapa.items()):  # Usar list para evitar RuntimeError
+        if clave not in ['_etiqueta', '_original', 'items'] and isinstance(valor, dict):
             letra = chr(65 + i)  # A, B, C, ...
             nueva_etiqueta = f"{prefijo}{letra}"
             valor['_etiqueta'] = nueva_etiqueta
-            etiquetas[nueva_etiqueta] = valor
             asignar_etiquetas(valor, nueva_etiqueta)
             i += 1
     if 'items' in mapa:
         for j, item in enumerate(mapa['items']):
             nueva_etiqueta = f"{prefijo}{j+1}"
-            etiquetas[nueva_etiqueta] = item
-            mapa['items'][j] = {'_etiqueta': nueva_etiqueta, '_original': item}
-    return etiquetas
+            item['_etiqueta'] = nueva_etiqueta
 
 def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_vertical=0):
     colores = generar_colores(max_niveles + 1)
     formas = [
-        lambda x, y, s: Rectangle((x-s/2, y-s/2), s, s),  # Cuadrado
-        lambda x, y, s: Circle((x, y), s/2),              # Círculo
-        lambda x, y, s: RegularPolygon((x, y), 6, radius=s/2)  # Hexágono
+        lambda x, y, s: Rectangle((x-s/2, y-s/2), s, s),
+        lambda x, y, s: Circle((x, y), s/2),
+        lambda x, y, s: RegularPolygon((x, y), 6, radius=s/2)
     ]
     tamaño = 2
     espaciado_horizontal = 4
@@ -106,7 +98,7 @@ def dibujar_mapa_mental(mapa, ax, x=0, y=0, nivel=0, max_niveles=0, espaciado_ve
     # Procesar hijos (subsecciones)
     i = 0
     for subclave, subvalor in mapa.items():
-        if subclave != '_original' and subclave != '_etiqueta' and subclave != 'items' and isinstance(subvalor, dict):
+        if subclave not in ['_etiqueta', '_original', 'items'] and isinstance(subvalor, dict):
             y_hijo = y_hijo_base + i * espaciado_vertical
             ax.plot([x+tamaño/2, x_hijo-tamaño/2], [y, y_hijo], 'k-')
             sub_descendientes = contar_descendientes(subvalor)
@@ -144,7 +136,7 @@ if st.button("Generar Árbol Genealógico"):
         try:
             mapa = crear_mapa_mental(texto_input)
             max_niveles = calcular_max_niveles(mapa)
-            asignar_etiquetas(mapa)  # Asignar etiquetas antes de dibujar
+            asignar_etiquetas(mapa)  # Asignar etiquetas después de crear el mapa
             fig, ax = plt.subplots(figsize=(12, 8))
             espaciado_vertical = 2.5
             dibujar_mapa_mental(mapa, ax, max_niveles=max_niveles, espaciado_vertical=espaciado_vertical)
